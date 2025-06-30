@@ -7,6 +7,7 @@ import { Teachers } from '@/components/Teachers';
 import { Courses } from '@/components/Courses';
 import { Grades } from '@/components/Grades';
 import { Schedule } from '@/components/Schedule';
+import { AppProvider } from '@/contexts/AppContext';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -31,12 +32,14 @@ const Index = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 p-8 overflow-auto">
-        {renderContent()}
-      </main>
-    </div>
+    <AppProvider>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <main className="flex-1 p-8 overflow-auto">
+          {renderContent()}
+        </main>
+      </div>
+    </AppProvider>
   );
 };
 

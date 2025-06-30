@@ -3,55 +3,26 @@ import React, { useState } from 'react';
 import { Users, Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AddStudentForm } from '@/components/forms/AddStudentForm';
+import { useApp } from '@/contexts/AppContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 export const Students = () => {
+  const { students, courses, deleteStudent } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('all');
-
-  const students = [
-    {
-      id: 1,
-      name: 'Marie Dubois',
-      email: 'marie.dubois@email.com',
-      course: 'Développement Web',
-      level: 'Niveau 2',
-      average: 15.2,
-      status: 'Actif',
-      joinDate: '2023-09-15'
-    },
-    {
-      id: 2,
-      name: 'Pierre Martin',
-      email: 'pierre.martin@email.com',
-      course: 'Marketing Digital',
-      level: 'Niveau 1',
-      average: 13.8,
-      status: 'Actif',
-      joinDate: '2023-10-01'
-    },
-    {
-      id: 3,
-      name: 'Sophie Laurent',
-      email: 'sophie.laurent@email.com',
-      course: 'Développement Web',
-      level: 'Niveau 3',
-      average: 16.5,
-      status: 'Actif',
-      joinDate: '2023-08-20'
-    },
-    {
-      id: 4,
-      name: 'Thomas Durand',
-      email: 'thomas.durand@email.com',
-      course: 'Comptabilité',
-      level: 'Niveau 2',
-      average: 12.1,
-      status: 'En pause',
-      joinDate: '2023-09-10'
-    }
-  ];
-
-  const courses = ['all', 'Développement Web', 'Marketing Digital', 'Comptabilité'];
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -59,6 +30,14 @@ export const Students = () => {
     const matchesCourse = selectedCourse === 'all' || student.course === selectedCourse;
     return matchesSearch && matchesCourse;
   });
+
+  const handleDeleteStudent = (id: number, name: string) => {
+    deleteStudent(id);
+    toast({
+      title: 'Étudiant supprimé',
+      description: `${name} a été supprimé avec succès`,
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -70,7 +49,10 @@ export const Students = () => {
           </h2>
           <p className="text-muted-foreground mt-1">Gérez les inscriptions et suivez les progrès</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => setShowAddForm(true)}
+        >
           <Plus size={20} />
           Ajouter Étudiant
         </Button>
@@ -96,8 +78,8 @@ export const Students = () => {
               className="px-3 py-2 border border-input rounded-md bg-background"
             >
               <option value="all">Toutes les filières</option>
-              {courses.filter(c => c !== 'all').map(course => (
-                <option key={course} value={course}>{course}</option>
+              {courses.map(course => (
+                <option key={course.id} value={course.name}>{course.name}</option>
               ))}
             </select>
           </div>
@@ -150,9 +132,30 @@ export const Students = () => {
               <Button variant="outline" size="sm">
                 <Edit size={16} />
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                <Trash2 size={16} />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                    <Trash2 size={16} />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Êtes-vous sûr de vouloir supprimer {student.name} ? Cette action est irréversible.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => handleDeleteStudent(student.id, student.name)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Supprimer
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         ))}
@@ -164,6 +167,11 @@ export const Students = () => {
           <p className="text-muted-foreground">Aucun étudiant trouvé</p>
         </div>
       )}
+
+      <AddStudentForm 
+        open={showAddForm} 
+        onClose={() => setShowAddForm(false)} 
+      />
     </div>
   );
 };

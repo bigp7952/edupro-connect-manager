@@ -3,68 +3,64 @@ import React, { useState } from 'react';
 import { FileText, Plus, Search, Filter, Download, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AddGradeForm } from '@/components/forms/AddGradeForm';
+import { useApp } from '@/contexts/AppContext';
+import { generateGradesReport, generateStudentBulletin } from '@/utils/pdfGenerator';
+import { toast } from '@/hooks/use-toast';
 
 export const Grades = () => {
+  const { students, grades, courses } = useApp();
   const [selectedCourse, setSelectedCourse] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddGradeForm, setShowAddGradeForm] = useState(false);
 
-  const grades = [
-    {
-      id: 1,
-      studentName: 'Marie Dubois',
-      course: 'Développement Web',
-      subject: 'HTML/CSS',
-      grade: 16.5,
-      coefficient: 2,
-      date: '2024-01-15',
-      teacher: 'Dr. Jean Dupont'
-    },
-    {
-      id: 2,
-      studentName: 'Marie Dubois',
-      course: 'Développement Web',
-      subject: 'JavaScript',
-      grade: 14.0,
-      coefficient: 3,
-      date: '2024-01-20',
-      teacher: 'Dr. Jean Dupont'
-    },
-    {
-      id: 3,
-      studentName: 'Pierre Martin',
-      course: 'Marketing Digital',
-      subject: 'SEO',
-      grade: 15.5,
-      coefficient: 2,
-      date: '2024-01-18',
-      teacher: 'Prof. Claire Martin'
-    },
-    {
-      id: 4,
-      studentName: 'Sophie Laurent',
-      course: 'Développement Web',
-      subject: 'React',
-      grade: 17.0,
-      coefficient: 3,
-      date: '2024-01-22',
-      teacher: 'Dr. Jean Dupont'
-    }
-  ];
+  const filteredGrades = grades.filter(grade => {
+    const matchesSearch = grade.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         grade.subject.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCourse = selectedCourse === 'all' || grade.course === selectedCourse;
+    return matchesSearch && matchesCourse;
+  });
 
-  const studentAverages = [
-    { name: 'Marie Dubois', course: 'Développement Web', average: 15.2, trend: '+0.8' },
-    { name: 'Pierre Martin', course: 'Marketing Digital', average: 13.8, trend: '-0.2' },
-    { name: 'Sophie Laurent', course: 'Développement Web', average: 16.5, trend: '+1.2' },
-    { name: 'Thomas Durand', course: 'Comptabilité', average: 12.1, trend: '-0.5' }
-  ];
+  const calculateStudentAverages = () => {
+    return students.map(student => {
+      const studentGrades = grades.filter(g => g.studentName === student.name);
+      if (studentGrades.length === 0) return { ...student, calculatedAverage: 0, trend: '0' };
+      
+      const totalPoints = studentGrades.reduce((sum, grade) => sum + (grade.grade * grade.coefficient), 0);
+      const totalCoefficients = studentGrades.reduce((sum, grade) => sum + grade.coefficient, 0);
+      const calculatedAverage = totalPoints / totalCoefficients;
+      
+      return {
+        ...student,
+        calculatedAverage: Math.round(calculatedAverage * 10) / 10,
+        trend: calculatedAverage > student.average ? `+${(calculatedAverage - student.average).toFixed(1)}` : `${(calculatedAverage - student.average).toFixed(1)}`
+      };
+    });
+  };
 
-  const courses = ['all', 'Développement Web', 'Marketing Digital', 'Comptabilité'];
+  const studentAverages = calculateStudentAverages();
 
   const getGradeColor = (grade: number) => {
     if (grade >= 16) return 'text-green-600';
     if (grade >= 14) return 'text-blue-600';
     if (grade >= 12) return 'text-orange-600';
     return 'text-red-600';
+  };
+
+  const handleExportPDF = () => {
+    generateGradesReport(grades, students);
+    toast({
+      title: 'Export réussi',
+      description: 'Le rapport PDF a été téléchargé',
+    });
+  };
+
+  const handleGenerateBulletin = (student: any) => {
+    generateStudentBulletin(student, grades);
+    toast({
+      title: 'Bulletin généré',
+      description: `Le bulletin de ${student.name} a été téléchargé`,
+    });
   };
 
   return (
@@ -78,11 +74,14 @@ export const Grades = () => {
           <p className="text-muted-foreground mt-1">Gestion des évaluations et bulletins</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button variant="outline" className="flex items-center gap-2" onClick={handleExportPDF}>
             <Download size={20} />
             Export PDF
           </Button>
-          <Button className="flex items-center gap-2">
+          <Button 
+            className="flex items-center gap-2"
+            onClick={() => setShowAddGradeForm(true)}
+          >
             <Plus size={20} />
             Ajouter Note
           </Button>
@@ -95,7 +94,9 @@ export const Grades = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Moyenne Générale</p>
-              <p className="text-2xl font-bold text-gray-900">14.2/20</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {grades.length > 0 ? (grades.reduce((sum, g) => sum + g.grade, 0) / grades.length).toFixed(1) : '0'}/20
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-blue-50">
               <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -106,7 +107,7 @@ export const Grades = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Notes Saisies</p>
-              <p className="text-2xl font-bold text-gray-900">156</p>
+              <p className="text-2xl font-bold text-gray-900">{grades.length}</p>
             </div>
             <div className="p-3 rounded-lg bg-green-50">
               <FileText className="w-6 h-6 text-green-600" />
@@ -116,8 +117,8 @@ export const Grades = () => {
         <div className="stat-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Bulletins Générés</p>
-              <p className="text-2xl font-bold text-gray-900">42</p>
+              <p className="text-sm font-medium text-muted-foreground">Bulletins Disponibles</p>
+              <p className="text-2xl font-bold text-gray-900">{students.length}</p>
             </div>
             <div className="p-3 rounded-lg bg-purple-50">
               <Download className="w-6 h-6 text-purple-600" />
@@ -128,7 +129,9 @@ export const Grades = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Taux Réussite</p>
-              <p className="text-2xl font-bold text-gray-900">87%</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {grades.length > 0 ? Math.round((grades.filter(g => g.grade >= 12).length / grades.length) * 100) : 0}%
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-orange-50">
               <TrendingUp className="w-6 h-6 text-orange-600" />
@@ -159,15 +162,15 @@ export const Grades = () => {
                   className="px-3 py-2 border border-input rounded-md bg-background text-sm"
                 >
                   <option value="all">Tous</option>
-                  {courses.filter(c => c !== 'all').map(course => (
-                    <option key={course} value={course}>{course}</option>
+                  {courses.map(course => (
+                    <option key={course.id} value={course.name}>{course.name}</option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="space-y-3">
-              {grades.map((grade) => (
+              {filteredGrades.slice(0, 10).map((grade) => (
                 <div key={grade.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
@@ -200,8 +203,8 @@ export const Grades = () => {
                   <p className="text-xs text-muted-foreground">{student.course}</p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-lg font-bold ${getGradeColor(student.average)}`}>
-                    {student.average}
+                  <p className={`text-lg font-bold ${getGradeColor(student.calculatedAverage)}`}>
+                    {student.calculatedAverage || 0}
                   </p>
                   <p className={`text-xs ${
                     student.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'
@@ -213,11 +216,24 @@ export const Grades = () => {
             ))}
           </div>
           
-          <Button variant="outline" className="w-full mt-4">
-            Générer Bulletins
+          <Button 
+            variant="outline" 
+            className="w-full mt-4"
+            onClick={() => {
+              studentAverages.forEach(student => {
+                handleGenerateBulletin(student);
+              });
+            }}
+          >
+            Générer Tous les Bulletins
           </Button>
         </div>
       </div>
+
+      <AddGradeForm 
+        open={showAddGradeForm} 
+        onClose={() => setShowAddGradeForm(false)} 
+      />
     </div>
   );
 };
